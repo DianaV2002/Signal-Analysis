@@ -120,24 +120,21 @@ int CVICALLBACK timerCB (int panel, int control, int event,
 	
 	double * autoSpectrum2 = (double *) calloc (npoints / 2, sizeof(double));
 	double *convertedSpectrum2 = (double *) calloc (npoints / 2, sizeof(double));
+	
 	double* downsampledSignal=DownsampleSignal(waveData, npoints, 8);
+	
 	switch (event)
 	{
 		case EVENT_TIMER_TICK:
 			
 			second++;//incrementam secunda
 			if(second < 5)
-				SetCtrlAttribute(panel, FREQ_PANEL_SECOND, ATTR_CTRL_VAL, second);
-			else if (second > 5)
 			{
-				second = 0;
 				SetCtrlAttribute(panel, FREQ_PANEL_SECOND, ATTR_CTRL_VAL, second);
-			}
-			
-			int fsd=fs/8;
-			int sec=second*fsd;
+				int fsd=sampleRate/8;
+				int sec=second*fsd;
 				
-				for(int i=sec;i < sec + nrPointsInterval; ++i)
+				for(int i=sec;(i < sec + nrPointsInterval) && (i < npoints/8); ++i)
 				{
 					buffer[i-sec]=downsampledSignal[i];
 				}
@@ -147,7 +144,7 @@ int CVICALLBACK timerCB (int panel, int control, int event,
 				PlotY(panel, FREQ_PANEL_GRAPH_RAW_2, buffer , nrPointsInterval, VAL_DOUBLE, VAL_THIN_LINE, VAL_EMPTY_SQUARE, VAL_SOLID, VAL_CONNECTED_POINTS, VAL_RED);
 	 
 				ScaledWindowEx(buffer, nrPointsInterval, RECTANGLE, windowParameter, &winConst);
-				AutoPowerSpectrum(buffer, nrPointsInterval, 1.0 / sampleRate, autoSpectrum, &df);
+				AutoPowerSpectrum(buffer, nrPointsInterval, 1.0 / fsd, autoSpectrum, &df);
 				PowerFrequencyEstimate(autoSpectrum, nrPointsInterval / 2, searchFreq, winConst, df, 7, &freqPeak, &powerPeak);
 				SpectrumUnitConversion(autoSpectrum, nrPointsInterval / 2, 0, SCALING_MODE_LINEAR, DISPLAY_UNIT_VRMS, df, winConst, convertedSpectrum, unit); 
 				
@@ -167,9 +164,9 @@ int CVICALLBACK timerCB (int panel, int control, int event,
 				
 				//vedem ce funtie de filtrare trebuie folosita				   
 				if(filterType == 0)
-					Bw_LPF(buffer, nrPointsInterval, sampleRate, sampleRate / 6, 6, filteredSignal);
+					Bw_LPF(buffer, nrPointsInterval, fsd, fsd / 6, 6, filteredSignal);
 				else
-					Ch_LPF(buffer, nrPointsInterval, sampleRate, sampleRate / 6, 40.0, 4, filteredSignal);				
+					Ch_LPF(buffer, nrPointsInterval, fsd, fsd / 6, 40.0, 4, filteredSignal);				
 				//DebugPrintf("%f", filterType);
 				DeleteGraphPlot (panel,  FREQ_PANEL_GRAPH_FILTERED_2, -1, VAL_IMMEDIATE_DRAW);
 				DeleteGraphPlot (panel,  FREQ_PANEL_GRAPH_SPEC_FILT, -1, VAL_IMMEDIATE_DRAW);
@@ -178,7 +175,7 @@ int CVICALLBACK timerCB (int panel, int control, int event,
 				PlotY(panel,FREQ_PANEL_GRAPH_FILTERED_2, filteredSignal, nrPointsInterval, VAL_DOUBLE, VAL_THIN_LINE, VAL_EMPTY_SQUARE, VAL_SOLID, VAL_CONNECTED_POINTS, VAL_RED);
 				
 
-				AutoPowerSpectrum(filteredSignal, nrPointsInterval, 1.0 / sampleRate, autoSpectrum2, &df2);
+				AutoPowerSpectrum(filteredSignal, nrPointsInterval, 1.0 / fsd, autoSpectrum2, &df2);
 				PowerFrequencyEstimate(autoSpectrum2, nrPointsInterval / 2, searchFreq2, winConst2, df2, 7, &freqPeak2, &powerPeak2);
 				SpectrumUnitConversion(autoSpectrum2, nrPointsInterval / 2, 0, SCALING_MODE_LINEAR, DISPLAY_UNIT_VRMS, df2, winConst2, convertedSpectrum2, unit); 
 
@@ -234,6 +231,13 @@ int CVICALLBACK timerCB (int panel, int control, int event,
 					DiscardBitmap(imgHandle);
 					
 				}
+			}
+			else if (second > 5)
+			{
+				second = 0;
+				SetCtrlAttribute(panel, FREQ_PANEL_SECOND, ATTR_CTRL_VAL, second);
+			}
+			
 			free(autoSpectrum);
 			free(autoSpectrum2);
 			free(convertedSpectrum);
